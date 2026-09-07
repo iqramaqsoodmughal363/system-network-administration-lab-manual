@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>System & Network Administration Lab Manual (DI-323L)</title>
+<style>
+    @media print {
+        body { font-size: 11pt; line-height: 1.4; }
+        .page-break { page-break-before: always; }
+        h1, h2, h3 { page-break-after: avoid; }
+    }
+    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 30px; color: #1a1a1a; line-height: 1.6; }
+    h1 { color: #003366; text-align: center; border-bottom: 3px solid #003366; padding-bottom: 10px; font-size: 24pt; }
+    h2 { color: #004080; border-bottom: 2px solid #6699cc; padding-bottom: 5px; margin-top: 30px; font-size: 16pt; page-break-before: always; }
+    h2:first-of-type { page-break-before: avoid; }
+    h3 { color: #005580; margin-top: 20px; font-size: 13pt; }
+    p, li { font-size: 10.5pt; }
+    code { background-color: #f4f4f4; padding: 2px 5px; border-radius: 3px; font-family: 'Courier New', Courier, monospace; font-weight: bold; }
+    pre { background-color: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 5px; overflow-x: auto; font-family: 'Consolas', 'Courier New', monospace; font-size: 9.5pt; line-height: 1.4; }
+    .action { color: #ce9178; font-weight: bold; }
+    .cmd { color: #9cdcfe; }
+    .comment { color: #6a9955; font-style: italic; }
+    table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 10pt; }
+    th, td { border: 1px solid #cccccc; padding: 8px 10px; text-align: left; }
+    th { background-color: #003366; color: white; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    .viva-box { background-color: #eef6fc; border-left: 5px solid #005580; padding: 10px 15px; margin: 15px 0; }
+    .viva-q { font-weight: bold; color: #003366; }
+</style>
+</head>
+<body>
+
+<h1>SYSTEM & NETWORK ADMINISTRATION LAB MANUAL</h1>
+<p style="text-align:center;"><b>Course Code:</b> DI-323L | <b>Affiliated:</b> Punjab University Curriculum Standards</p>
+
+<!-- CHAPTER 1 -->
+<h2>CHAPTER 1: The Foundation — Server Environment & OS Setup</h2>
+<h3>1. Concept & Theory</h3>
+<p><b>Server Environment:</b> Server Operating Systems (Windows Server, Ubuntu Server, RHEL) are designed to provide continuous network services (DNS, DHCP, Active Directory) to client devices. Unlike Desktop OS, Server OS is optimized for high background service loads, remote management, and strict access controls.</p>
+<p><b>Storage Allocation:</b> <code>/</code> (Root) holds all core files; <code>/boot</code> contains kernel and bootloader files; <code>swap</code> acts as virtual memory when physical RAM is exhausted.</p>
+
+<h3>2. Step-by-Step Command Execution & File System Actions</h3>
+<pre>
+<span class="comment"># 1. Network Interface & IP Checking</span>
+<span class="cmd">ip a</span>
+<span class="action">-> [ACTION: Screen par sabhi network interfaces (e.g., eth0, lo) aur unke IPs DISPLAY karta hai]</span>
+
+<span class="cmd">ip link set eth0 up</span>
+<span class="action">-> [ACTION: eth0 network card ko ENABLE/TURN ON karta hai]</span>
+
+<span class="cmd">ip link set eth0 down</span>
+<span class="action">-> [ACTION: eth0 network card ko DISABLE/TURN OFF karta hai]</span>
+
+<span class="comment"># 2. Static IP Setup (Netplan File Editing)</span>
+<span class="cmd">sudo nano /etc/netplan/01-netcfg.yaml</span>
+<span class="action">-> [ACTION: Netplan configuration FILE OPEN karke EDIT karta hai]</span>
+
+<span class="comment"># File contents:</span>
+network:
+  version: 2
+  renderer: networkd
+  ethernets:
+    eth0:
+      dhcp4: no
+      addresses: [192.168.1.10/24]
+      routes:
+        - to: default
+          via: 192.168.1.1
+      nameservers:
+        addresses: [8.8.8.8, 1.1.1.1]
+
+<span class="cmd">sudo netplan apply</span>
+<span class="action">-> [ACTION: New network settings ko System memory mein APPLY aur SAVE karta hai]</span>
+
+<span class="comment"># 3. Connectivity Verification</span>
+<span class="cmd">ping -c 4 192.168.1.1</span>
+<span class="action">-> [ACTION: Gateway ko 4 test packets SEND karke connection VERIFY karta hai]</span>
+
+<span class="cmd">traceroute -n 8.8.8.8</span>
+<span class="action">-> [ACTION: Destination tak jaane wale raste ke tamaam Routers DISPLAY karta hai]</span>
+</pre>
+
+<div class="viva-box">
+    <div class="viva-q">Viva Q1: Why do servers require static IP addresses?</div>
+    <div><b>Ans:</b> Servers provide continuous network services. Dynamic IP changes break client requests, DNS records, and active connections.</div>
+    <div class="viva-q">Viva Q2: What is the purpose of Swap partition?</div>
+    <div><b>Ans:</b> Swap serves as secondary memory on hard disk space when physical RAM is completely filled.</div>
+</div>
+
+<!-- CHAPTER 2 -->
+<h2>CHAPTER 2: Linux Boot Management, Process Control & Monitoring</h2>
+<h3>1. Concept & Theory</h3>
+<p><b>Systemd Init System:</b> Systemd manages system startup services via targets (e.g., <code>multi-user.target</code> replaces traditional Runlevel 3, <code>graphical.target</code> replaces Runlevel 5).</p>
+<p><b>Process States:</b> Running (R), Sleeping (S), Stopped (T), and Zombie (Z). Processes are assigned a Process ID (PID) and priority levels (Nice values from -20 to 19).</p>
+
+<h3>2. Step-by-Step Command Execution & File System Actions</h3>
+<pre>
+<span class="comment"># 1. Boot Target Management</span>
+<span class="cmd">systemctl get-default</span>
+<span class="action">-> [ACTION: Current default boot mode DISPLAY karta hai]</span>
+
+<span class="cmd">sudo systemctl set-default multi-user.target</span>
+<span class="action">-> [ACTION: Default boot target file KO MODIFY karke Command-Line Interface (CLI) mode set karta hai]</span>
+
+<span class="comment"># 2. Process Identification & Termination</span>
+<span class="cmd">ps aux | grep apache2</span>
+<span class="action">-> [ACTION: Running processes LIST karta hai aur "apache2" ko FILTER karke screen par dikhata hai]</span>
+
+<span class="cmd">kill -9 1234</span>
+<span class="action">-> [ACTION: PID 1234 wale running process ko FORCEFULLY KILL/DELETE kar deta hai]</span>
+
+<span class="cmd">pkill -f nginx</span>
+<span class="action">-> [ACTION: "nginx" naam ke tamaam running processes ko ek sath TERMINATE kar deta hai]</span>
+
+<span class="comment"># 3. Process Priority Adjustment</span>
+<span class="cmd">nice -n 10 ./backup_script.sh</span>
+<span class="action">-> [ACTION: Script ko LOWER PRIORITY (+10) ke sath LAUNCH/EXECUTE karta hai]</span>
+
+<span class="cmd">renice -n -5 -p 5678</span>
+<span class="action">-> [ACTION: Running PID 5678 ki priority BADHA (+5 se -5) kar fast processing ke liye UPDATE karta hai]</span>
+
+<span class="comment"># 4. System Health Check</span>
+<span class="cmd">top</span>
+<span class="action">-> [ACTION: System resources (CPU, RAM, Processes) ko REAL-TIME MONITORING mode mein OPEN karta hai]</span>
+</pre>
+
+<div class="viva-box">
+    <div class="viva-q">Viva Q1: What is a Zombie Process?</div>
+    <div><b>Ans:</b> A process that has completed execution but its entry remains in the process table because its parent process hasn't read its exit status.</div>
+    <div class="viva-q">Viva Q2: What is the highest priority nice value in Linux?</div>
+    <div><b>Ans:</b> -20 is the highest priority, while +19 is the lowest priority.</div>
+</div>
+
+<!-- CHAPTER 3 -->
+<h2>CHAPTER 3: Packet Filtering & Network Traffic Security</h2>
+<h3>1. Concept & Theory</h3>
+<p><b>IPTables Architecture:</b> Uses Tables (Filter, NAT, Mangle) and Chains (<code>INPUT</code>, <code>OUTPUT</code>, <code>FORWARD</code>) to inspect and filter network packets. Operations include <code>ACCEPT</code> (pass packet), <code>DROP</code> (discard packet quietly), and <code>REJECT</code> (discard and notify sender).</p>
+
+<h3>2. Step-by-Step Command Execution & File System Actions</h3>
+<pre>
+<span class="comment"># 1. Flush & Reset Rules</span>
+<span class="cmd">sudo iptables -F</span>
+<span class="action">-> [ACTION: Firewall memory se pehle se mojud tamaam filtering rules KO DELETE/CLEAR karta hai]</span>
+
+<span class="comment"># 2. Set Default Chain Policies</span>
+<span class="cmd">sudo iptables -P INPUT DROP</span>
+<span class="action">-> [ACTION: Default Policy UPDATE karta hai: Tamam incoming traffic BLOCK ho jaye gi]</span>
+
+<span class="cmd">sudo iptables -P OUTPUT ACCEPT</span>
+<span class="action">-> [ACTION: Default Policy UPDATE karta hai: Tamam outgoing traffic ALLOW ho jaye gi]</span>
+
+<span class="comment"># 3. Add Access Rules</span>
+<span class="cmd">sudo iptables -A INPUT -i lo -j ACCEPT</span>
+<span class="action">-> [ACTION: Loopback interface (Localhost) ka traffic ALLOW karne ka RULE ADD karta hai]</span>
+
+<span class="cmd">sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT</span>
+<span class="action">-> [ACTION: SSH Service (Port 22) par incoming traffic ALLOW karne ka RULE ADD karta hai]</span>
+
+<span class="cmd">sudo iptables -A INPUT -s 192.168.1.50 -j DROP</span>
+<span class="action">-> [ACTION: Specific IP (192.168.1.50) ke saare packets KO BLOCK/DISCARD karne ka RULE ADD karta hai]</span>
+
+<span class="comment"># 4. List Active Rules</span>
+<span class="cmd">sudo iptables -L -v -n --line-numbers</span>
+<span class="action">-> [ACTION: Tamaam active firewall rules ko Line Numbers ke sath DISPLAY karta hai]</span>
+
+<span class="cmd">sudo iptables -D INPUT 3</span>
+<span class="action">-> [ACTION: INPUT chain se Rule Number 3 KO DELETE/REMOVE kar deta hai]</span>
+</pre>
+
+<div class="viva-box">
+    <div class="viva-q">Viva Q1: Difference between DROP and REJECT targets in IPTables?</div>
+    <div><b>Ans:</b> DROP silently discards packets without notifying the sender. REJECT drops the packet and returns an ICMP "Destination Unreachable" error.</div>
+    <div class="viva-q">Viva Q2: Which table handles NAT in IPTables?</div>
+    <div><b>Ans:</b> The <code>NAT</code> table, using <code>PREROUTING</code> and <code>POSTROUTING</code> chains.</div>
+</div>
+
+<!-- CHAPTER 4 -->
+<h2>CHAPTER 4: Automation — System Administration Bash Scripting</h2>
+<h3>1. Concept & Theory</h3>
+<p><b>Bash Scripting:</b> Automates system administrative routines such as system backup, resource monitoring, log auditing, and user creation. Uses control structures (<code>if/else</code>, <code>for</code> loops) and system binaries.</p>
+
+<h3>2. Step-by-Step Command Execution & File System Actions</h3>
+<pre>
+<span class="comment"># 1. Script File Creation</span>
+<span class="cmd">nano sys_monitor.sh</span>
+<span class="action">-> [ACTION: "sys_monitor.sh" naam ki NEW FILE CREATE karke EDIT mode mein OPEN karta hai]</span>
+
+<span class="comment"># File Contents:</span>
+#!/bin/bash
+LOG_FILE="/var/log/sys_audit.log"
+THRESHOLD=80
+
+echo "=== System Check: $(date) ===" >> $LOG_FILE
+DISK_USAGE=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
+
+if [ "$DISK_USAGE" -gt "$THRESHOLD" ]; then
+    echo "CRITICAL: High Disk Usage (${DISK_USAGE}%)" >> $LOG_FILE
+else
+    echo "Disk Usage Normal: ${DISK_USAGE}%" >> $LOG_FILE
+fi
+
+<span class="comment"># 2. File Permissions Setup</span>
+<span class="cmd">chmod +x sys_monitor.sh</span>
+<span class="action">-> [ACTION: File ke permissions MODIFY karke usko EXECUTABLE FILE bana deta hai]</span>
+
+<span class="comment"># 3. Execution</span>
+<span class="cmd">./sys_monitor.sh</span>
+<span class="action">-> [ACTION: Bash script KO EXECUTE/RUN karta hai aur output log file mein SAVE karta hai]</span>
+
+<span class="comment"># 4. View Created Log File</span>
+<span class="cmd">cat /var/log/sys_audit.log</span>
+<span class="action">-> [ACTION: Audit Log File ke contents ko screen par DISPLAY karta hai]</span>
+</pre>
+
+<div class="viva-box">
+    <div class="viva-q">Viva Q1: What is the purpose of the Shebang (`#!/bin/bash`) line?</div>
+    <div><b>Ans:</b> It specifies the absolute interpreter path required to execute the commands within the script.</div>
+    <div class="viva-q">Viva Q2: How to schedule a script to run daily at 2 AM?</div>
+    <div><b>Ans:</b> Add a cron job entry in <code>crontab -e</code>: <code>0 2 * * * /path/to/sys_monitor.sh</code>.</div>
+</div>
+
+<!-- CHAPTER 5 -->
+<h2>CHAPTER 5: Infrastructure Sharing — Network File Servers (NFS, Samba, FTP)</h2>
+<h3>1. Concept & Theory</h3>
+<p><b>Network File System (NFS):</b> Native Linux-to-Linux distributed file protocol.</p>
+<p><b>Samba Server:</b> Implements Server Message Block (SMB/CIFS) protocols to share files and printers seamlessly between Linux and Windows operating systems.</p>
+<p><b>FTP (Very Secure FTP Daemon):</b> Client-server protocol used to transfer files across TCP networks.</p>
+
+<h3>2. Step-by-Step Command Execution & File System Actions</h3>
+<pre>
+<span class="comment"># 1. NFS Server Configuration</span>
+<span class="cmd">sudo mkdir -p /srv/nfs_share</span>
+<span class="action">-> [ACTION: Storage ke liye "/srv/nfs_share" DIRECTORY/FOLDER CREATE karta hai]</span>
+
+<span class="cmd">sudo chown nobody:nogroup /srv/nfs_share</span>
+<span class="action">-> [ACTION: Shared folder ke OWNER permissions CHANGE karke public access set karta hai]</span>
+
+<span class="cmd">sudo nano /etc/exports</span>
+<span class="action">-> [ACTION: NFS Config FILE EDIT karta hai aur share paths ADD karta hai]</span>
+<span class="comment"># Content: /srv/nfs_share 192.168.1.0/24(rw,sync,no_subtree_check)</span>
+
+<span class="cmd">sudo exportfs -a</span>
+<span class="action">-> [ACTION: Exports file ki new configuration ko RE-EXPORT/LOAD karta hai]</span>
+
+<span class="comment"># 2. Samba Server Configuration</span>
+<span class="cmd">sudo mkdir -p /srv/samba_share</span>
+<span class="action">-> [ACTION: Samba sharing ke liye NEW FOLDER CREATE karta hai]</span>
+
+<span class="cmd">sudo smbpasswd -a john</span>
+<span class="action">-> [ACTION: Existing Linux user "john" ko Samba User Database mein ADD karta hai aur PASSWORD set karta hai]</span>
+
+<span class="cmd">sudo systemctl restart smbd</span>
+<span class="action">-> [ACTION: Samba Daemon Service KO RESTART karta hai taake naye shares ACTIVE ho jayein]</span>
+</pre>
+
+<div class="viva-box">
+    <div class="viva-q">Viva Q1: Which protocol enables Linux to share files with Windows OS?</div>
+    <div><b>Ans:</b> Samba (using the SMB/CIFS protocol).</div>
+    <div class="viva-q">Viva Q2: Difference between NFS and Samba?</div>
+    <div><b>Ans:</b> NFS is lightweight and optimized for Unix/Linux hosts; Samba provides cross-platform file and print sharing with Active Directory integration capabilities.</div>
+</div>
+
+<!-- CHAPTER 6 -->
+<h2>CHAPTER 6: Core Network Services — DNS, DHCP & Apache Web Server</h2>
+<h3>1. Concept & Theory</h3>
+<p><b>DHCP (Dynamic Host Configuration Protocol):</b> Automates IP address assignment using the DORA process (Discover, Offer, Request, Acknowledge).</p>
+<p><b>DNS (Domain Name System):</b> Maps hostnames to IP addresses using resource records (A, PTR, CNAME, MX).</p>
+<p><b>Apache HTTP Server:</b> Hosts web content and processes HTTP requests on Port 80.</p>
+
+<h3>2. Step-by-Step Command Execution & File System Actions</h3>
+<pre>
+<span class="comment"># 1. DHCP Configuration File Update</span>
+<span class="cmd">sudo nano /etc/dhcp/dhcpd.conf</span>
+<span class="action">-> [ACTION: DHCP Configuration FILE EDIT karta hai]</span>
+<span class="comment"># Add:
+subnet 192.168.1.0 netmask 255.255.255.0 {
+  range 192.168.1.100 192.168.1.200;
+  option routers 192.168.1.1;
+  option domain-name-servers 192.168.1.10;
+}</span>
+
+<span class="cmd">sudo systemctl restart isc-dhcp-server</span>
+<span class="action">-> [ACTION: DHCP Service KO RESTART karke automatic IP pool ALLOCATE karna SHURU karta hai]</span>
+
+<span class="comment"># 2. BIND9 DNS Zone File Setup</span>
+<span class="cmd">sudo nano /etc/bind/db.enterprise.local</span>
+<span class="action">-> [ACTION: Forward DNS Lookup Zone FILE CREATE/EDIT karta hai]</span>
+<span class="comment"># Add:
+$TTL 604800
+@ IN SOA ns1.enterprise.local. admin.enterprise.local. ( 2 604800 86400 2419200 604800 )
+@ IN NS ns1.enterprise.local.
+ns1 IN A 192.168.1.10
+www IN A 192.168.1.20</span>
+
+<span class="comment"># 3. Apache Virtual Host Setup</span>
+<span class="cmd">sudo mkdir -p /var/www/enterprise</span>
+<span class="action">-> [ACTION: Web content ke liye DocumentRoot FOLDER CREATE karta hai]</span>
+
+<span class="cmd">echo "&lt;h1&gt;Welcome to Enterprise Web&lt;/h1&gt;" | sudo tee /var/www/enterprise/index.html</span>
+<span class="action">-> [ACTION: New Web Page File "index.html" CREATE karta hai aur text INJECT karta hai]</span>
+
+<span class="cmd">sudo a2ensite enterprise.conf</span>
+<span class="action">-> [ACTION: Apache site configuration link ENABLE/ACTIVATE karta hai]</span>
+
+<span class="cmd">sudo systemctl reload apache2</span>
+<span class="action">-> [ACTION: Apache Server KO RELOAD karta hai bina clients ko disconnect kiye]</span>
+</pre>
+
+<div class="viva-box">
+    <div class="viva-q">Viva Q1: Explain the DHCP DORA process.</div>
+    <div><b>Ans:</b> Discover (client broadcast), Offer (server response), Request (client selection), Acknowledge (server confirms lease).</div>
+    <div class="viva-q">Viva Q2: What is the purpose of a DNS PTR record?</div>
+    <div><b>Ans:</b> PTR (Pointer) records map an IP address to a Domain Name (Reverse DNS Lookup).</div>
+</div>
+
+<!-- CHAPTER 7 -->
+<h2>CHAPTER 7: Windows Server Administration & Active Directory DS</h2>
+<h3>1. Concept & Theory</h3>
+<p><b>Active Directory Domain Services (AD DS):</b> A centralized directory service storing domain objects (users, groups, computers, printers) and controlling authentication and authorization policies across a network.</p>
+<p><b>Logical Structure:</b> Objects -> Organizational Units (OUs) -> Domains -> Trees -> Forest.</p>
+
+<h3>2. Step-by-Step Command Execution & File System Actions (PowerShell)</h3>
+<pre>
+<span class="comment"># 1. Install AD DS Role</span>
+<span class="cmd">Install-WindowsFeature -Name AD-Domain-Services -IncludeManagementTools</span>
+<span class="action">-> [ACTION: System mein Active Directory Roles aur Management Consoles INSTALL/WRITE karta hai]</span>
+
+<span class="comment"># 2. Promote Server to Domain Controller (Create Forest)</span>
+<span class="cmd">Install-ADDSForest -DomainName "enterprise.local" -DomainNetbiosName "ENTERPRISE" -Force:$true</span>
+<span class="action">-> [ACTION: Database CONVERT karta hai, DNS Server INSTALLL karta hai, aur Server ko Domain Controller BANA deta hai]</span>
+
+<span class="comment"># 3. Organizational Unit (OU) & User Management</span>
+<span class="cmd">New-ADOrganizationalUnit -Name "IT_Dept" -Path "DC=enterprise,DC=local"</span>
+<span class="action">-> [ACTION: Active Directory Database ke andar "IT_Dept" naam ka NEW CONTAINER/OU CREATE karta hai]</span>
+
+<span class="cmd">New-ADUser -Name "JohnDoe" -SamAccountName "jdoe" -UserPrincipalName "jdoe@enterprise.local" -Path "OU=IT_Dept,DC=enterprise,DC=local" -Enabled $true</span>
+<span class="action">-> [ACTION: IT_Dept OU ke andar "JohnDoe" naam ka NEW USER ACCOUNT CREATE karta hai]</span>
+
+<span class="cmd">New-ADGroup -Name "IT_Admins" -GroupScope Global -GroupCategory Security</span>
+<span class="action">-> [ACTION: Active Directory mein Global Security GROUP CREATE karta hai]</span>
+
+<span class="cmd">Add-ADGroupMember -Identity "IT_Admins" -Members "jdoe"</span>
+<span class="action">-> [ACTION: User "jdoe" ko "IT_Admins" Group ke andar ADD/MEMBER BANA deta hai]</span>
+</pre>
+
+<div class="viva-box">
+    <div class="viva-q">Viva Q1: Difference between Group and Organizational Unit (OU)?</div>
+    <div><b>Ans:</b> An OU is a container used to delegate administrative permissions and apply Group Policy Objects (GPOs). A Group is used to grant access permissions to resources.</div>
+    <div class="viva-q">Viva Q2: What is the FSMO role in AD DS?</div>
+    <div><b>Ans:</b> Flexible Single Master Operations roles are specialized tasks assigned to specific DCs to prevent database update conflicts.</div>
+</div>
+
+<!-- CHAPTER 8 -->
+<h2>CHAPTER 8: Managed Switches, Access Points & VLAN Trunking</h2>
+<h3>1. Concept & Theory</h3>
+<p><b>VLAN (Virtual Local Area Network):</b> Logically segments physical switch ports into distinct broadcast domains to increase security and reduce network congestion.</p>
+<p><b>Switch Port Modes:</b></p>
+<ul>
+    <li><b>Access Port:</b> Carries untagged traffic for a single VLAN.</li>
+    <li><b>Trunk Port:</b> Carries tagged traffic for multiple VLANs using IEEE 802.1Q encapsulation.</li>
+</ul>
+
+<h3>2. Step-by-Step Cisco CLI Command Execution</h3>
+<pre>
+<span class="comment"># 1. Basic Switch Initialization</span>
+<span class="cmd">Switch> enable</span>
+<span class="action">-> [ACTION: User Exec Mode se Privileged EXEC Mode mein ENTER karta hai]</span>
+
+<span class="cmd">Switch# configure terminal</span>
+<span class="action">-> [ACTION: Global Configuration Mode OPEN karta hai]</span>
+
+<span class="cmd">Switch(config)# hostname SW-CORE-01</span>
+<span class="action">-> [ACTION: Switch Device Hostname CHANGE karke "SW-CORE-01" UPDATE karta hai]</span>
+
+<span class="comment"># 2. VLAN Creation & Port Assignment</span>
+<span class="cmd">SW-CORE-01(config)# vlan 10</span>
+<span class="action">-> [ACTION: Switch Memory mein VLAN ID 10 CREATE karta hai]</span>
+
+<span class="cmd">SW-CORE-01(config-vlan)# name Sales</span>
+<span class="action">-> [ACTION: VLAN 10 ko "Sales" NAME ASSIGN karta hai]</span>
+
+<span class="cmd">SW-CORE-01(config)# interface range fastEthernet 0/1 - 5</span>
+<span class="action">-> [ACTION: Port 1 se 5 tak MULTIPLE PORTS SELECT karta hai]</span>
+
+<span class="cmd">SW-CORE-01(config-if-range)# switchport mode access</span>
+<span class="action">-> [ACTION: Selected ports ko ACCESS MODE par SET karta hai]</span>
+
+<span class="cmd">SW-CORE-01(config-if-range)# switchport access vlan 10</span>
+<span class="action">-> [ACTION: Selected ports ko VLAN 10 ke andar ASSIGN/ADD karta hai]</span>
+
+<span class="comment"># 3. 802.1Q Trunk Port Configuration</span>
+<span class="cmd">SW-CORE-01(config)# interface gigabitEthernet 0/1</span>
+<span class="action">-> [ACTION: Uplink Gigabit Port SELECT karta hai]</span>
+
+<span class="cmd">SW-CORE-01(config-if)# switchport mode trunk</span>
+<span class="action">-> [ACTION: Port ko TRUNK MODE par MODIFY karta hai (Multi-VLAN traffic handler)]</span>
+
+<span class="cmd">SW-CORE-01(config-if)# switchport trunk allowed vlan 10,20</span>
+<span class="action">-> [ACTION: Trunk Port par sirf VLAN 10 aur 20 traffic ALLOW karne ki PERMISSION SET karta hai]</span>
+</pre>
+
+<div class="viva-box">
+    <div class="viva-q">Viva Q1: What framing standard is used for Trunk links?</div>
+    <div><b>Ans:</b> IEEE 802.1Q standard, which inserts a 4-byte VLAN tag into Ethernet frames.</div>
+    <div class="viva-q">Viva Q2: Can hosts on VLAN 10 talk to hosts on VLAN 20 directly on a Layer 2 switch?</div>
+    <div><b>Ans:</b> No, traffic between different VLANs requires a Layer 3 device (Router or Layer 3 Switch).</div>
+</div>
+
+<!-- CHAPTER 9 -->
+<h2>CHAPTER 9: WAN Networking & Routing Protocols (Static, RIP, IGRP)</h2>
+<h3>1. Concept & Theory</h3>
+<p><b>Static Routing:</b> Manually defined routes entered into the routing table. Highly secure, low CPU overhead, but unsuitable for dynamic, expanding topologies.</p>
+<p><b>RIP v2 (Routing Information Protocol):</b> Distance-vector dynamic protocol using Hop Count as a metric (maximum 15 hops). Sends updates via multicast address <code>224.0.0.9</code>.</p>
+
+<h3>2. Step-by-Step Cisco CLI Command Execution</h3>
+<pre>
+<span class="comment"># 1. Interface IP Configuration</span>
+<span class="cmd">Router(config)# interface serial 0/0/0</span>
+<span class="action">-> [ACTION: Serial WAN Interface SELECT karta hai]</span>
+
+<span class="cmd">Router(config-if)# ip address 10.0.0.1 255.255.255.252</span>
+<span class="action">-> [ACTION: WAN Interface par IP Address aur Subnet Mask WRITE/SET karta hai]</span>
+
+<span class="cmd">Router(config-if)# no shutdown</span>
+<span class="action">-> [ACTION: Interface State UP/ENABLE karta hai]</span>
+
+<span class="comment"># 2. Static Route Configuration</span>
+<span class="cmd">Router(config)# ip route 192.168.20.0 255.255.255.0 10.0.0.2</span>
+<span class="action">-> [ACTION: Destination Network 192.168.20.0 tak pahunchne ke liye MANUAL ROUTE ADD karta hai via Next-Hop IP 10.0.0.2]</span>
+
+<span class="comment"># 3. Dynamic Routing Configuration (RIP v2)</span>
+<span class="cmd">Router(config)# router rip</span>
+<span class="action">-> [ACTION: Router Engine mein RIP Routing Protocol Process ENABLE/START karta hai]</span>
+
+<span class="cmd">Router(config-router)# version 2</span>
+<span class="action">-> [ACTION: Protocol ko Classless RIP Version 2 par SET karta hai]</span>
+
+<span class="cmd">Router(config-router)# no auto-summary</span>
+<span class="action">-> [ACTION: Automatic Classful route summarization KO DISABLE/OFF karta hai]</span>
+
+<span class="cmd">Router(config-router)# network 192.168.10.0</span>
+<span class="cmd">Router(config-router)# network 10.0.0.0</span>
+<span class="action">-> [ACTION: Local directly connected networks ko RIP advertisement LIST mein ADD karta hai]</span>
+
+<span class="comment"># 4. Routing Table Verification</span>
+<span class="cmd">Router# show ip route</span>
+<span class="action">-> [ACTION: Router ka Routing Table DISPLAY karta hai (Static 'S', RIP 'R' routes)]</span>
+</pre>
+
+<div class="viva-box">
+    <div class="viva-q">Viva Q1: What is the maximum hop count for RIP protocol?</div>
+    <div><b>Ans:</b> Maximum hop count is 15. A hop count of 16 indicates the destination network is unreachable.</div>
+    <div class="viva-q">Viva Q2: What metric does RIP use to select the best path?</div>
+    <div><b>Ans:</b> Hop Count (number of routers traversed).</div>
+</div>
+
+<!-- CHAPTER 10 -->
+<h2>CHAPTER 10: Router Security — Access Control Lists (Standard & Extended)</h2>
+<h3>1. Concept & Theory</h3>
+<p><b>Access Control Lists (ACLs):</b> Sequential filters applied to router interfaces to permit or deny packets based on criteria.</p>
+<ul>
+    <li><b>Standard ACLs (1-99 / 1300-1999):</b> Filter packets based strictly on <b>Source IP Address</b>. Must be placed as close to the <i>destination</i> as possible.</li>
+    <li><b>Extended ACLs (100-199 / 2000-2699):</b> Filter based on <b>Source IP, Destination IP, IP Protocol (TCP/UDP), and Port Numbers</b>. Must be placed as close to the <i>source</i> as possible.</li>
+</ul>
+
+<h3>2. Step-by-Step Cisco CLI Command Execution</h3>
+<pre>
+<span class="comment"># 1. Standard ACL (Block Host 192.168.1.50)</span>
+<span class="cmd">Router(config)# access-list 10 deny host 192.168.1.50</span>
+<span class="action">-> [ACTION: Specific Host IP ko BLOCK karne ka Standard ACL Rule CREATE karta hai]</span>
+
+<span class="cmd">Router(config)# access-list 10 permit any</span>
+<span class="action">-> [ACTION: Baki tamam IP addresses ko PERMIT/ALLOW karne ka Rule ADD karta hai]</span>
+
+<span class="cmd">Router(config)# interface fastEthernet 0/0</span>
+<span class="cmd">Router(config-if)# ip access-group 10 out</span>
+<span class="action">-> [ACTION: Rule 10 ko Output Interface par APPLY/ACTIVATE karta hai]</span>
+
+<span class="comment"># 2. Extended ACL (Allow SSH, Block HTTP)</span>
+<span class="cmd">Router(config)# ip access-list extended SECURE_ACL</span>
+<span class="action">-> [ACTION: "SECURE_ACL" naam ka Extended ACL Mode OPEN/CREATE karta hai]</span>
+
+<span class="cmd">Router(config-ext-nacl)# permit tcp 192.168.1.0 0.0.0.255 host 10.0.0.5 eq 22</span>
+<span class="action">-> [ACTION: Subnet se Web Server tak SSH Traffic (Port 22) ALLOW karne ka Rule WRITE karta hai]</span>
+
+<span class="cmd">Router(config-ext-nacl)# deny tcp 192.168.1.0 0.0.0.255 host 10.0.0.5 eq 80</span>
+<span class="action">-> [ACTION: Subnet se Web Server tak Web Traffic (Port 80 HTTP) BLOCK/DENY karne ka Rule WRITE karta hai]</span>
+
+<span class="cmd">Router(config-ext-nacl)# permit ip any any</span>
+<span class="action">-> [ACTION: Baki tamaam IP traffic ko ALLOW karta hai (Overrides default implicit deny)]</span>
+
+<span class="cmd">Router(config)# interface fastEthernet 0/1</span>
+<span class="cmd">Router(config-if)# ip access-group SECURE_ACL in</span>
+<span class="action">-> [ACTION: Created Extended ACL ko Input Interface par APPLY/BIND kar deta hai]</span>
+
+<span class="comment"># 3. ACL Verification</span>
+<span class="cmd">Router# show access-lists</span>
+<span class="action">-> [ACTION: System mein configured saare ACL rules aur unke packet match counts DISPLAY karta hai]</span>
+</pre>
+
+<div class="viva-box">
+    <div class="viva-q">Viva Q1: Where should Standard ACLs be placed?</div>
+    <div><b>Ans:</b> As close to the destination network as possible.</div>
+    <div class="viva-q">Viva Q2: What is the implicit rule at the end of every ACL?</div>
+    <div><b>Ans:</b> An invisible <code>deny ip any any</code> rule that blocks all unmatched traffic.</div>
+</div>
+
+</body>
+</html>
